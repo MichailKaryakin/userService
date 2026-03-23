@@ -28,11 +28,13 @@ public class JwtService {
     ) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessTokenTtlMs = accessTokenTtlMs;
+        log.info("JwtService initialized, accessTokenTtlMs={}", accessTokenTtlMs);
     }
 
     public String generateAccessToken(UUID userId, String username, List<String> roles) {
+        log.debug("Generating access token: userId={}, username={}, roles={}", userId, username, roles);
         Instant now = Instant.now();
-        return Jwts.builder()
+        String token = Jwts.builder()
                 .subject(userId.toString())
                 .claim("username", username)
                 .claim("roles", roles)
@@ -40,20 +42,29 @@ public class JwtService {
                 .expiration(Date.from(now.plusMillis(accessTokenTtlMs)))
                 .signWith(secretKey)
                 .compact();
+        log.debug("Access token generated for userId={}", userId);
+        return token;
     }
 
     public Claims parseClaims(String token) {
-        return Jwts.parser()
+        log.trace("Parsing JWT claims");
+        Claims claims = Jwts.parser()
                 .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+        log.trace("JWT claims parsed: subject={}", claims.getSubject());
+        return claims;
     }
 
     public boolean isValid(String token) {
         try {
-            parseClaims(token);
+            Claims claims = parseClaims(token);
+            log.debug("JWT is valid: subject={}, expiration={}", claims.getSubject(), claims.getExpiration());
             return true;
+        } catch (ExpiredJwtException ex) {
+            log.warn("JWT expired: subject={}, expiredAt={}", ex.getClaims().getSubject(), ex.getClaims().getExpiration());
+            return false;
         } catch (JwtException | IllegalArgumentException ex) {
             log.warn("Invalid JWT: {}", ex.getMessage());
             return false;

@@ -1,6 +1,7 @@
 package org.example.user.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.user.dto.*;
 import org.example.user.entity.RefreshToken;
 import org.example.user.entity.Role;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -38,15 +40,22 @@ public class UserService {
 
     @Transactional
     public UserResponse register(RegisterRequest request) {
+        log.debug("Registration attempt: username={}, email={}", request.username(), request.email());
+
         if (userRepository.existsByUsername(request.username())) {
+            log.warn("Registration failed — username already taken: {}", request.username());
             throw new UserAlreadyExistsException("Username already taken: " + request.username());
         }
         if (userRepository.existsByEmail(request.email())) {
+            log.warn("Registration failed — email already registered: {}", request.email());
             throw new UserAlreadyExistsException("Email already registered: " + request.email());
         }
 
         Role userRole = roleRepository.findByName(RoleName.ROLE_USER)
-                .orElseThrow(() -> new IllegalStateException("ROLE_USER not found in DB"));
+                .orElseThrow(() -> {
+                    log.error("ROLE_USER not found in DB — check data migration");
+                    return new IllegalStateException("ROLE_USER not found in DB");
+                });
 
         User user = User.builder()
                 .username(request.username())
@@ -57,53 +66,83 @@ public class UserService {
                 .roles(Set.of(userRole))
                 .build();
 
-        return toResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+        log.info("User registered: userId={}, username={}", saved.getId(), saved.getUsername());
+        return toResponse(saved);
     }
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        log.debug("Login attempt: username={}", request.username());
+
         User user = userRepository.findByUsername(request.username())
-                .orElseThrow(() -> new BadCredentialsException("Invalid username or password"));
+                .orElseThrow(() -> {
+                    log.warn("Login failed — username not found: {}", request.username());
+                    return new BadCredentialsException("Invalid username or password");
+                });
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            log.warn("Login failed — bad password: userId={}, username={}", user.getId(), user.getUsername());
             throw new BadCredentialsException("Invalid username or password");
         }
 
         if (!user.isEnabled()) {
+            log.warn("Login failed — account disabled: userId={}, username={}", user.getId(), user.getUsername());
             throw new BadCredentialsException("Account is disabled");
         }
 
+        log.info("User logged in: userId={}, username={}", user.getId(), user.getUsername());
         return issueTokens(user);
     }
 
     @Transactional
     public AuthResponse refresh(RefreshTokenRequest request) {
+        log.debug("Token refresh attempt");
+
         RefreshToken refreshToken = refreshTokenRepository.findByToken(request.refreshToken())
-                .orElseThrow(() -> new InvalidTokenException("Refresh token not found"));
+                .orElseThrow(() -> {
+                    log.warn("Token refresh failed — token not found");
+                    return new InvalidTokenException("Refresh token not found");
+                });
 
         if (!refreshToken.isValid()) {
+            log.warn("Token refresh failed — token expired or revoked: userId={}", refreshToken.getUser().getId());
             throw new InvalidTokenException("Refresh token is expired or revoked");
         }
 
         refreshToken.setRevoked(true);
         refreshTokenRepository.save(refreshToken);
 
+        log.info("Refresh token rotated: userId={}", refreshToken.getUser().getId());
         return issueTokens(refreshToken.getUser());
     }
 
     @Transactional
     public void logout(UUID userId) {
+        log.debug("Logout: userId={}", userId);
+
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(userId));
+                .orElseThrow(() -> {
+                    log.warn("Logout failed — user not found: userId={}", userId);
+                    return new UserNotFoundException(userId);
+                });
 
         refreshTokenRepository.revokeAllByUser(user);
+        log.info("User logged out, all refresh tokens revoked: userId={}", userId);
     }
 
     @Transactional(readOnly = true)
     public UserResponse getById(UUID id) {
+        log.debug("Fetching user by id: {}", id);
         return userRepository.findById(id)
-                .map(this::toResponse)
-                .orElseThrow(() -> new UserNotFoundException(id));
+                .map(user -> {
+                    log.debug("User found: userId={}, username={}", user.getId(), user.getUsername());
+                    return toResponse(user);
+                })
+                .orElseThrow(() -> {
+                    log.warn("User not found: userId={}", id);
+                    return new UserNotFoundException(id);
+                });
     }
 
     private AuthResponse issueTokens(User user) {
@@ -120,6 +159,7 @@ public class UserService {
                 .build();
 
         refreshTokenRepository.save(refreshToken);
+        log.debug("Tokens issued: userId={}, roles={}", user.getId(), roles);
 
         return new AuthResponse(accessToken, refreshToken.getToken(), jwtService.getAccessTokenTtlMs());
     }
