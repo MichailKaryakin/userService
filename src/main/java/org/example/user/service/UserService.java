@@ -40,8 +40,6 @@ public class UserService {
 
     @Transactional
     public UserResponse register(RegisterRequest request) {
-        log.debug("Registration attempt: username={}, email={}", request.username(), request.email());
-
         if (userRepository.existsByUsername(request.username())) {
             log.warn("Registration failed — username already taken: {}", request.username());
             throw new UserAlreadyExistsException("Username already taken: " + request.username());
@@ -73,8 +71,6 @@ public class UserService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        log.debug("Login attempt: username={}", request.username());
-
         User user = userRepository.findByUsername(request.username())
                 .orElseThrow(() -> {
                     log.warn("Login failed — username not found: {}", request.username());
@@ -97,8 +93,6 @@ public class UserService {
 
     @Transactional
     public AuthResponse refresh(RefreshTokenRequest request) {
-        log.debug("Token refresh attempt");
-
         RefreshToken refreshToken = refreshTokenRepository.findByToken(request.refreshToken())
                 .orElseThrow(() -> {
                     log.warn("Token refresh failed — token not found");
@@ -119,8 +113,6 @@ public class UserService {
 
     @Transactional
     public void logout(UUID userId) {
-        log.debug("Logout: userId={}", userId);
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> {
                     log.warn("Logout failed — user not found: userId={}", userId);
@@ -133,12 +125,8 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserResponse getById(UUID id) {
-        log.debug("Fetching user by id: {}", id);
         return userRepository.findById(id)
-                .map(user -> {
-                    log.debug("User found: userId={}, username={}", user.getId(), user.getUsername());
-                    return toResponse(user);
-                })
+                .map(this::toResponse)
                 .orElseThrow(() -> {
                     log.warn("User not found: userId={}", id);
                     return new UserNotFoundException(id);
