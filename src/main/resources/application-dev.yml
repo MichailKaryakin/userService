@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5436/user_db
+    username: postgres
+    password: BYC-eM5-Mzw-Mp8

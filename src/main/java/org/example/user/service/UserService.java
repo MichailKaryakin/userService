@@ -13,6 +13,7 @@ import org.example.user.exception.UserNotFoundException;
 import org.example.user.repository.RefreshTokenRepository;
 import org.example.user.repository.RoleRepository;
 import org.example.user.repository.UserRepository;
+import org.example.user.security.JwtService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
