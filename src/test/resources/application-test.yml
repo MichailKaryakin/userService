@@ -1,0 +1,15 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  liquibase:
+    enabled: true
+  kafka:
+    listener:
+      missing-topics-fatal: false
+  cache:
+    type: none
+
+jwt:
+  secret: test-secret-key-min-32-chars-long!!
