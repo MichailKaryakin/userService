@@ -40,4 +40,4 @@ jobs:
         run: ./gradlew integrationTest
 
       - name: Build Docker image
-        run: docker build -t order-service:latest .
+        run: docker build -t user-service:latest .

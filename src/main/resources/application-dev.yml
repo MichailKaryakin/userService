@@ -3,3 +3,8 @@ spring:
     url: jdbc:postgresql://localhost:5436/user_db
     username: postgres
     password: BYC-eM5-Mzw-Mp8
+  data:
+    redis:
+      host: localhost
+      port: 6381
+      timeout: 2000ms

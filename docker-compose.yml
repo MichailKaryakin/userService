@@ -33,7 +33,7 @@ services:
     image: prom/prometheus:latest
     container_name: user-prometheus
     ports:
-      - "9092:9090"
+      - "9094:9090"
     volumes:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
 
@@ -52,6 +52,7 @@ services:
   user:
     build: .
     container_name: user-service
+    profiles: ["app"]
     ports:
       - "8083:8083"
     environment:
@@ -60,7 +61,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: BYC-eM5-Mzw-Mp8
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: prod
       JWT_SECRET: your-very-long-secret-key-at-least-32-chars
     depends_on:
       postgres:

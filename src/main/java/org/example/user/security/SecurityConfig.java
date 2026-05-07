@@ -45,9 +45,12 @@ public class SecurityConfig {
                                 "/api/v1/auth/logout"
                         ).authenticated()
                         .requestMatchers(
-                                "/actuator/health",
+                                "/actuator/**",
                                 "/v3/api-docs/**",
-                                "/swagger-ui/**"
+                                "/v3/api-docs.yaml",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/webjars/**"
                         ).permitAll()
                         .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
